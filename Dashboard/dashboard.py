@@ -85,7 +85,7 @@ average_review_score_by_delivery_status = create_average_review_score_by_deliver
 
 col1, col2 = st.columns([1, 6.5])
 with col1:
-    st.image("olist_logo.png")
+    st.image("Dashborad/olist_logo.png")
 with col2:
     st.title("Dashboard Olist E-commerce")  
 
