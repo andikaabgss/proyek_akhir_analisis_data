@@ -196,3 +196,7 @@ ax.set_ylabel("Average Review Score")
 ax.set_title("Average Review Score by Delivery Status")
 ax.set_ylim(0, 5)
 st.pyplot(fig)
+
+st.divider()
+st.caption("Data Source: [Olist E-commerce Public Dataset](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce)")
+st.caption("Created by: **Andika Bagus Saputra** © 2026")
