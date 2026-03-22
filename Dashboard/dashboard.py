@@ -67,7 +67,7 @@ def create_average_review_score_by_delivery_status(data):
     
     return average_review_score_by_delivery_status
 
-main_df = pd.read_csv("main_df.csv")
+main_df = pd.read_csv("Dashboard/main_df.csv")
 
 customer_by_state = create_customer_by_state(main_df)
 customer_by_city = create_customer_by_city(main_df)
