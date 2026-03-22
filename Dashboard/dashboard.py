@@ -7,6 +7,73 @@ import folium
 sns.set_style("whitegrid")
 
 # Load Data
+@st.cache_data
+def load_data():
+    df = pd.read_csv("main_df.csv")
+    df['order_purchase_timestamp'] = pd.to_datetime(df['order_purchase_timestamp'])
+    df['order_delivered_customer_date'] = pd.to_datetime(df['order_delivered_customer_date'])
+    df['order_estimated_delivery_date'] = pd.to_datetime(df['order_estimated_delivery_date'])
+    return df
+
+main_df = load_data()
+
+# Sidebar filters
+st.sidebar.header("Filters")
+
+# Date range filter
+min_date = main_df['order_purchase_timestamp'].min().date()
+max_date = main_df['order_purchase_timestamp'].max().date()
+
+date_range = st.sidebar.date_input(
+    "Select Date Range",
+    value=(min_date, max_date),
+    min_value=min_date,
+    max_value=max_date
+)
+
+if isinstance(date_range, tuple) and len(date_range) == 2:
+    start_date, end_date = date_range
+    filtered_df = main_df[(main_df['order_purchase_timestamp'].dt.date >= start_date) & 
+                         (main_df['order_purchase_timestamp'].dt.date <= end_date)]
+elif isinstance(date_range, tuple) and len(date_range) == 1:
+    # Single date selected
+    selected_date = date_range[0]
+    filtered_df = main_df[main_df['order_purchase_timestamp'].dt.date == selected_date]
+else:
+    filtered_df = main_df
+
+# State filter
+states = sorted(filtered_df['customer_state'].unique())
+selected_states = st.sidebar.multiselect(
+    "Select States",
+    options=states,
+    default=states[:5] if len(states) > 5 else states  # Default to first 5 states
+)
+
+if selected_states:
+    filtered_df = filtered_df[filtered_df['customer_state'].isin(selected_states)]
+
+# Product category filter
+categories = sorted(filtered_df['product_category_name'].dropna().unique())
+selected_categories = st.sidebar.multiselect(
+    "Select Product Categories",
+    options=categories,
+    default=[]
+)
+
+if selected_categories:
+    filtered_df = filtered_df[filtered_df['product_category_name'].isin(selected_categories)]
+
+# Payment type filter
+payment_types = sorted(filtered_df['payment_type'].dropna().unique())
+selected_payment_types = st.sidebar.multiselect(
+    "Select Payment Types",
+    options=payment_types,
+    default=payment_types
+)
+
+if selected_payment_types:
+    filtered_df = filtered_df[filtered_df['payment_type'].isin(selected_payment_types)]
 def create_customer_by_state(data):
     customer_by_state = data['customer_state'].value_counts().reset_index()
     
@@ -69,20 +136,33 @@ def create_average_review_score_by_delivery_status(data):
 
 main_df = pd.read_csv("Dashboard/main_df.csv")
 
-customer_by_state = create_customer_by_state(main_df)
-customer_by_city = create_customer_by_city(main_df)
-total_revenue = create_sum_revenue(main_df)
-avg_revenue_per_order = create_avg_revenue_per_order(main_df)
-top_10_products = create_top_10_products_by_revenue(main_df)
-top_10_products_quantity = create_top_10_products_by_quantity(main_df)
-monthly_revenue_trend = create_monthly_revenue_trend(main_df)
-payment_type_distribution = create_payment_type_distribution(main_df)
-highest_reviewed_products = create_highest_reviewed_products(main_df)
-lowest_reviewed_products = create_lowest_reviewed_products(main_df)
-average_review_score_by_delivery_status = create_average_review_score_by_delivery_status(main_df)
+customer_by_state = create_customer_by_state(filtered_df)
+customer_by_city = create_customer_by_city(filtered_df)
+total_revenue = create_sum_revenue(filtered_df)
+avg_revenue_per_order = create_avg_revenue_per_order(filtered_df)
+top_10_products = create_top_10_products_by_revenue(filtered_df)
+top_10_products_quantity = create_top_10_products_by_quantity(filtered_df)
+monthly_revenue_trend = create_monthly_revenue_trend(filtered_df)
+payment_type_distribution = create_payment_type_distribution(filtered_df)
+highest_reviewed_products = create_highest_reviewed_products(filtered_df)
+lowest_reviewed_products = create_lowest_reviewed_products(filtered_df)
+average_review_score_by_delivery_status = create_average_review_score_by_delivery_status(filtered_df)
+
+# Show filtered data info
+st.sidebar.markdown(f"**Filtered Records:** {len(filtered_df):,}")
+if isinstance(date_range, tuple) and len(date_range) == 2:
+    st.sidebar.markdown(f"**Date Range:** {date_range[0]} to {date_range[1]}")
+elif isinstance(date_range, tuple) and len(date_range) == 1:
+    st.sidebar.markdown(f"**Selected Date:** {date_range[0]}")
+else:
+    st.sidebar.markdown("**Date Range:** All dates")
+
+# Refresh button
+if st.sidebar.button("Reset Filters"):
+    st.session_state.clear()
+    st.rerun()
 
 # Header
-
 col1, col2 = st.columns([1, 6.5])
 with col1:
     st.image("Dashboard/olist_logo.png")
@@ -92,99 +172,114 @@ with col2:
 # Metic Cards
 col1, col2, col3 = st.columns([0.75, 1.25, 1], gap="medium")
 with col1:
-    st.metric(label="Total Customers", value=f"{main_df['customer_id'].nunique():,}")
+    st.metric(label="Total Customers", value=f"{filtered_df['customer_id'].nunique():,}")
 with col2:
     st.metric(label="Total Revenue", value=f"R$ {total_revenue:,.2f}")
 with col3:
     st.metric(label="Avg Revenue per Order", value=f"R$ {avg_revenue_per_order:,.2f}")
 
-# Charts
+# Color schemes
 color_contrast = ["#184375", "#9dc2d5", "#9dc2d5", "#9dc2d5", "#9dc2d5", "#9dc2d5", "#9dc2d5", "#9dc2d5", "#9dc2d5", "#9dc2d5"]
 color_gradient = sns.color_palette("Blues", n_colors=10)
 red_gradient = sns.color_palette("Reds_r", n_colors=10)
 
-# Monthly Revenue Trend
-st.subheader("Monthly Revenue Trend")
-fig, ax = plt.subplots(figsize=(12, 6))
-sns.lineplot(data=monthly_revenue_trend, x='month', y='revenue', marker='o', ax=ax)
-ax.set_ylim(0, monthly_revenue_trend['revenue'].max() * 1.1)
-ax.set_xlabel("Month")
-ax.set_ylabel("Total Revenue")
-ax.set_title("Monthly Revenue Trend")
-plt.xticks(rotation=45)
-st.pyplot(fig)
+# Create tabs for different sections
+tab1, tab2, tab3, tab4= st.tabs(["📈 Revenue & Trends", "👥 Customers", "📦 Products", "💳 Payments & Reviews"])
 
-# Customers by State and City
-col1, col2 = st.columns(2)
-with col1:
-    st.subheader("Customers by State")
-    fig, ax = plt.subplots(figsize=(10, 7))
-    sns.barplot(data=customer_by_state.head(10), x='customer_state', y='count', palette=color_contrast, ax=ax)
-    ax.set_xlabel("State")
-    ax.set_ylabel("Number of Customers")
-    ax.set_title("Number of Customers by State")
-    plt.xticks(rotation=45)
-    st.pyplot(fig)
-
-with col2:
-    st.subheader("Customers by City")
-    fig, ax = plt.subplots(figsize=(10, 6))
-    sns.barplot(data=customer_by_city.head(10), x='customer_city', y='count', palette=color_contrast, ax=ax)
-    ax.set_xlabel("City")
-    ax.set_ylabel("Number of Customers")
-    ax.set_title("Top 10 Cities by Number of Customers")
-    plt.xticks(rotation=45)
-    st.pyplot(fig)
-
-# Top 10 Products by Revenue and Quantity
-col1, col2 = st.columns(2)
-with col1:
-    st.subheader("Top 10 Products by Revenue")
-    fig, ax = plt.subplots(figsize=(10, 6))
-    sns.barplot(data=top_10_products, x='product_category_name', y='revenue', palette=color_gradient, hue='revenue' ,legend=False, ax=ax)
-    ax.set_xlabel("Product Category")
+with tab1:
+    st.header("Revenue Analysis")
+    
+    # Monthly Revenue Trend
+    st.subheader("Monthly Revenue Trend")
+    fig, ax = plt.subplots(figsize=(12, 6))
+    sns.lineplot(data=monthly_revenue_trend, x='month', y='revenue', marker='o', ax=ax)
+    ax.set_ylim(0, monthly_revenue_trend['revenue'].max() * 1.1)
+    ax.set_xlabel("Month")
     ax.set_ylabel("Total Revenue")
-    ax.set_title("Top 10 Products by Total Revenue")
-    plt.xticks(rotation=45)
-    st.pyplot(fig)
-with col2:
-    st.subheader("Top 10 Products by Quantity Sold")
-    fig, ax = plt.subplots(figsize=(10, 6))
-    sns.barplot(data=top_10_products_quantity, x='product_category_name', y='order_item_id', palette=color_gradient, hue='order_item_id' ,ax=ax, legend=False)
-    ax.set_xlabel("Product Category")
-    ax.set_ylabel("Total Quantity Sold")
-    ax.set_title("Top 10 Products by Total Quantity Sold")
+    ax.set_title("Monthly Revenue Trend")
     plt.xticks(rotation=45)
     st.pyplot(fig)
 
-# Payment Type Distribution
-st.subheader("Payment Type Distribution")
-fig, ax = plt.subplots(figsize=(8, 6))
-sns.barplot(data=payment_type_distribution, y='payment_type', x='count', palette=color_contrast, ax=ax)
-ax.set_xlabel("Count")
-ax.set_ylabel("Payment Type")
-ax.set_title("Distribution of Payment Types")
-st.pyplot(fig)
+with tab2:
+    st.header("Customer Analysis")
+    
+    # Customers by State and City
+    col1, col2 = st.columns(2)
+    with col1:
+        st.subheader("Customers by State")
+        fig, ax = plt.subplots(figsize=(10, 7))
+        sns.barplot(data=customer_by_state.head(10), x='customer_state', y='count', palette=color_contrast, ax=ax)
+        ax.set_xlabel("State")
+        ax.set_ylabel("Number of Customers")
+        ax.set_title("Number of Customers by State")
+        plt.xticks(rotation=45)
+        st.pyplot(fig)
 
-# Highest and Lowest Reviewed Products
-col1, col2 = st.columns([1.1, 1.05], gap='xxsmall')
-with col1:
-    st.subheader("Highest Reviewed Products")
-    fig, ax = plt.subplots(figsize=(10, 6))
-    sns.barplot(data=highest_reviewed_products, y='product_category_name', x='review_score', palette=color_gradient, hue='review_score' ,legend=False, ax=ax)
-    ax.set_xlabel("Average Review Score")
-    ax.set_ylabel("Product Category")
-    ax.set_title("Top 10 Highest Reviewed Products")
-    plt.xticks(rotation=45)
-    st.pyplot(fig)
-with col2:
-    st.subheader("Lowest Reviewed Products")
-    fig, ax = plt.subplots(figsize=(10, 6))
-    sns.barplot(data=lowest_reviewed_products, y='product_category_name', x='review_score', palette=red_gradient ,legend=False, ax=ax)
-    ax.set_ylabel("Product Category")
-    ax.set_xlabel("Average Review Score")
-    ax.set_title("Top 10 Lowest Reviewed Products")
-    plt.xticks(rotation=45)
+    with col2:
+        st.subheader("Customers by City")
+        fig, ax = plt.subplots(figsize=(10, 6))
+        sns.barplot(data=customer_by_city.head(10), x='customer_city', y='count', palette=color_contrast, ax=ax)
+        ax.set_xlabel("City")
+        ax.set_ylabel("Number of Customers")
+        ax.set_title("Top 10 Cities by Number of Customers")
+        plt.xticks(rotation=45)
+        st.pyplot(fig)
+
+with tab3:
+    st.header("Product Analysis")
+    
+    # Top 10 Products by Revenue and Quantity
+    col1, col2 = st.columns(2)
+    with col1:
+        st.subheader("Top 10 Products by Revenue")
+        fig, ax = plt.subplots(figsize=(10, 6))
+        sns.barplot(data=top_10_products, x='product_category_name', y='revenue', palette=color_gradient, hue='revenue' ,legend=False, ax=ax)
+        ax.set_xlabel("Product Category")
+        ax.set_ylabel("Total Revenue")
+        ax.set_title("Top 10 Products by Total Revenue")
+        plt.xticks(rotation=45)
+        st.pyplot(fig)
+    with col2:
+        st.subheader("Top 10 Products by Quantity Sold")
+        fig, ax = plt.subplots(figsize=(10, 6))
+        sns.barplot(data=top_10_products_quantity, x='product_category_name', y='order_item_id', palette=color_gradient, hue='order_item_id' ,ax=ax, legend=False)
+        ax.set_xlabel("Product Category")
+        ax.set_ylabel("Total Quantity Sold")
+        ax.set_title("Top 10 Products by Total Quantity Sold")
+        plt.xticks(rotation=45)
+        st.pyplot(fig)
+
+    # Highest and Lowest Reviewed Products
+    col1, col2 = st.columns([1.1, 1.05], gap='xxsmall')
+    with col1:
+        st.subheader("Highest Reviewed Products")
+        fig, ax = plt.subplots(figsize=(10, 6))
+        sns.barplot(data=highest_reviewed_products, y='product_category_name', x='review_score', palette=color_gradient, hue='review_score' ,legend=False, ax=ax)
+        ax.set_xlabel("Average Review Score")
+        ax.set_ylabel("Product Category")
+        ax.set_title("Top 10 Highest Reviewed Products")
+        plt.xticks(rotation=45)
+        st.pyplot(fig)
+    with col2:
+        st.subheader("Lowest Reviewed Products")
+        fig, ax = plt.subplots(figsize=(10, 6))
+        sns.barplot(data=lowest_reviewed_products, y='product_category_name', x='review_score', palette=red_gradient ,legend=False, ax=ax)
+        ax.set_ylabel("Product Category")
+        ax.set_xlabel("Average Review Score")
+        ax.set_title("Top 10 Lowest Reviewed Products")
+        plt.xticks(rotation=45)
+        st.pyplot(fig)
+
+with tab4:
+    st.header("Payments & Reviews")
+    
+    # Payment Type Distribution
+    st.subheader("Payment Type Distribution")
+    fig, ax = plt.subplots(figsize=(8, 6))
+    sns.barplot(data=payment_type_distribution, y='payment_type', x='count', palette=color_contrast, ax=ax)
+    ax.set_xlabel("Count")
+    ax.set_ylabel("Payment Type")
+    ax.set_title("Distribution of Payment Types")
     st.pyplot(fig)
 
 # Average Review Score by Delivery Status
