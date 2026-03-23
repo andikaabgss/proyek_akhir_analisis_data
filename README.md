@@ -1,9 +1,7 @@
 ## Setup Virtual Environment with Terminal
 ```
-mkdir proyek_analisis_data
-cd proyek_analisis_data
-pipenv install
-pipenv shell
+python -m venv .venv
+C:\Kuliah\SEMESTER 6\Submission\Analisis Data\Submission\venv\avtivate
 pip install -r requirements.txt
 ```
 
