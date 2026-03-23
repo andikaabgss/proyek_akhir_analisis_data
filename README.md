@@ -1,7 +1,9 @@
-## Setup Virtual Environment with Terminal
+## Setup virtual env dengan terminal
 ```
-python -m venv .venv
-C:\Kuliah\SEMESTER 6\Submission\Analisis Data\Submission\venv\avtivate
+mkdir proyek_andat
+cd proyek_andat
+pipenv install
+pipenv shell
 pip install -r requirements.txt
 ```
 
