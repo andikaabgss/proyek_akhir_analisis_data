@@ -9,7 +9,7 @@ sns.set_style("whitegrid")
 # Load Data
 @st.cache_data
 def load_data():
-    df = pd.read_csv("main_df.csv")
+    df = pd.read_csv("Dashboard/main_df.csv")
     df['order_purchase_timestamp'] = pd.to_datetime(df['order_purchase_timestamp'])
     df['order_delivered_customer_date'] = pd.to_datetime(df['order_delivered_customer_date'])
     df['order_estimated_delivery_date'] = pd.to_datetime(df['order_estimated_delivery_date'])
@@ -133,8 +133,6 @@ def create_average_review_score_by_delivery_status(data):
     average_review_score_by_delivery_status = data.groupby('delivery_status')['review_score'].mean().reset_index()
     
     return average_review_score_by_delivery_status
-
-main_df = pd.read_csv("Dashboard/main_df.csv")
 
 customer_by_state = create_customer_by_state(filtered_df)
 customer_by_city = create_customer_by_city(filtered_df)
