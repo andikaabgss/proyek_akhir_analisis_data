@@ -134,6 +134,8 @@ def create_average_review_score_by_delivery_status(data):
     
     return average_review_score_by_delivery_status
 
+main_df = pd.read_csv("Dashboard/main_df.csv")
+
 customer_by_state = create_customer_by_state(filtered_df)
 customer_by_city = create_customer_by_city(filtered_df)
 total_revenue = create_sum_revenue(filtered_df)
@@ -182,25 +184,44 @@ color_gradient = sns.color_palette("Blues", n_colors=10)
 red_gradient = sns.color_palette("Reds_r", n_colors=10)
 
 # Create tabs for different sections
-tab1, tab2, tab3, tab4= st.tabs(["📈 Revenue & Tren", "👥 Pelanggan", "📦 Produk", "💳 Pembayaran & Ulasan"])
+tab1, tab2, tab3, tab4, tab5= st.tabs(["📈 Revenue & Tren", "👥 Pelanggan", "📦 Produk", "💳 Pembayaran", "💬 Ulasan"])
 
 with tab1:
-    st.header("Analisis Revenue")
-    
     # Monthly Revenue Trend
     st.subheader("Tren Revenue Bulanan")
-    fig, ax = plt.subplots(figsize=(12, 6))
-    sns.lineplot(data=monthly_revenue_trend, x='month', y='revenue', marker='o', ax=ax)
-    ax.set_ylim(0, monthly_revenue_trend['revenue'].max() * 1.1)
-    ax.set_xlabel("Bulan")
-    ax.set_ylabel("Total Revenue")
-    ax.set_title("Tren Revenue Bulanan")
-    plt.xticks(rotation=45)
+    
+    # Prepare data for plotting
+    monthly_revenue = filtered_df.groupby(filtered_df['order_purchase_timestamp'].dt.to_period('M'))['revenue'].sum() 
+    monthly_sales = filtered_df.groupby(filtered_df['order_purchase_timestamp'].dt.to_period('M'))['order_id'].nunique()
+    
+    fig, ax1 = plt.subplots(figsize=(12, 6))
+    
+    # Plot monthly revenue
+    ax1.plot(monthly_revenue.index.astype(str), monthly_revenue.values, color='blue', label='Monthly Revenue')
+    ax1.set_xlabel('Bulan')
+    ax1.set_ylabel('Revenue (BRL)', color='blue')
+    ax1.tick_params(axis='y', labelcolor='blue')
+    ax1.set_title('Tren Revenue dan Penjualan Bulanan (Satu Tahun Terakhir)')
+    
+    # Plot monthly sales
+    ax2 = ax1.twinx()
+    ax2.plot(monthly_sales.index.astype(str), monthly_sales.values, color='red', label='Monthly Sales')
+    ax2.set_ylabel('Penjualan', color='red')
+    ax2.tick_params(axis='y', labelcolor='red')
+    
+    ax1.set_xticklabels(monthly_revenue.index.strftime('%Y-%m'), rotation=45, ha='right')
+    
+    # Legend
+    lines, labels = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    ax2.legend(lines + lines2, labels + labels2, loc='upper left')
+    
+    plt.grid(True, linestyle='--', alpha=0.6)
+    plt.tight_layout()
     st.pyplot(fig)
 
-with tab2:
-    st.header("Analisis Pelanggan")
-    
+
+with tab2:   
     # Customers by State and City
     col1, col2 = st.columns(2)
     with col1:
@@ -223,14 +244,12 @@ with tab2:
         plt.xticks(rotation=45)
         st.pyplot(fig)
 
-with tab3:
-    st.header("Analisis Produk")
-    
+with tab3:    
     # Top 10 Products by Revenue and Quantity
-    col1, col2 = st.columns(2)
+    col1, col2 = st.columns([1, 1.1])
     with col1:
         st.subheader("10 Produk Teratas berdasarkan Revenue")
-        fig, ax = plt.subplots(figsize=(10, 6))
+        fig, ax = plt.subplots(figsize=(10, 7))
         sns.barplot(data=top_10_products, x='product_category_name', y='revenue', palette=color_gradient, hue='revenue' ,legend=False, ax=ax)
         ax.set_xlabel("Kategori Produk")
         ax.set_ylabel("Total Revenue")
@@ -251,7 +270,7 @@ with tab3:
     col1, col2 = st.columns([1.1, 1.05], gap='xxsmall')
     with col1:
         st.subheader("Produk dengan Ulasan Tertinggi")
-        fig, ax = plt.subplots(figsize=(10, 6))
+        fig, ax = plt.subplots(figsize=(10, 6.25))
         sns.barplot(data=highest_reviewed_products, y='product_category_name', x='review_score', palette=color_gradient, hue='review_score' ,legend=False, ax=ax)
         ax.set_xlabel("Skor Ulasan Rata-rata")
         ax.set_ylabel("Kategori Produk")
@@ -269,8 +288,6 @@ with tab3:
         st.pyplot(fig)
 
 with tab4:
-    st.header("Pembayaran & Ulasan")
-    
     # Payment Type Distribution
     st.subheader("Distribusi Jenis Pembayaran")
     fig, ax = plt.subplots(figsize=(8, 6))
@@ -280,17 +297,22 @@ with tab4:
     ax.set_title("Distribusi Jenis Pembayaran")
     st.pyplot(fig)
 
+with tab5:
     # Average Review Score by Delivery Status by last quartal
     st.subheader("Skor Ulasan Rata-rata berdasarkan Status Pengiriman pada Kuartal Terakhir")
+
     last_quartal_date = filtered_df['order_purchase_timestamp'].max() - pd.DateOffset(months=3)
     last_quartal_data = filtered_df[filtered_df['order_purchase_timestamp'] >= last_quartal_date]
     average_review_score_by_delivery_status_last_quartal = create_average_review_score_by_delivery_status(last_quartal_data)
+    
     fig, ax = plt.subplots(figsize=(8, 6))
-    sns.barplot(data=average_review_score_by_delivery_status_last_quartal, x='delivery_status', y='review_score', palette=color_contrast, ax=ax)
+    sns.barplot(data=average_review_score_by_delivery_status_last_quartal, x='delivery_status', y='review_score', palette=['lightblue', 'lightcoral'], ax=ax)
     ax.set_xlabel("Status Pengiriman")
     ax.set_ylabel("Skor Ulasan Rata-rata")
     ax.set_title("Skor Ulasan Rata-rata berdasarkan Status Pengiriman (Kuartal Terakhir)")
     st.pyplot(fig)
+
+
     
 st.divider()
 st.caption("Sumber Data: [Dataset Publik E-commerce Olist](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce)")
